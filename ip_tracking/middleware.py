@@ -1,5 +1,6 @@
+from django.http import HttpResponseForbidden
+from ip_tracking.models import BlockedIP, RequestLog
 from django.utils.timezone import now
-from ip_tracking.models import RequestLog
 
 class IPTrackingMiddleware:
     def __init__(self, get_response):
@@ -7,17 +8,16 @@ class IPTrackingMiddleware:
 
     def __call__(self, request):
         ip = self.get_client_ip(request)
-        path = request.path
 
-        # Log the request
-        RequestLog.objects.create(ip_address=ip, timestamp=now(), path=path)
+        # Block if IP is blacklisted
+        if BlockedIP.objects.filter(ip_address=ip).exists():
+            return HttpResponseForbidden("Access denied: IP is blacklisted.")
+
+        # Log request
+        RequestLog.objects.create(ip_address=ip, timestamp=now(), path=request.path)
 
         return self.get_response(request)
 
     def get_client_ip(self, request):
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
-        if x_forwarded_for:
-            ip = x_forwarded_for.split(',')[0]
-        else:
-            ip = request.META.get('REMOTE_ADDR')
-        return ip
+        return x_forwarded_for.split(',')[0] if x_forwarded_for else request.META.get('REMOTE_ADDR')
