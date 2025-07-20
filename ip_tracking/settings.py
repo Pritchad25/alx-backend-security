@@ -3,6 +3,14 @@ INSTALLED_APPS = [
     'ratelimit',
 ]
 
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'detect-suspicious-ips-hourly': {
+        'task': 'ip_tracking.tasks.detect_suspicious_ips',
+        'schedule': crontab(minute=0, hour='*'),
+    },
+}
 
 MIDDLEWARE = [
     ...
